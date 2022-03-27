@@ -7,10 +7,10 @@ Both the intrepeter and the various expression types are all written in F#.
 
 
 ## List of Expressions:
-![List of Expressions](./demo_pics/Expression_List.png)
+![List of Expressions](./Demo_Images/Expression_List.png)
 
 ## Composing a basic program:
-![Composing a program out of expressions](./demo_pics/Composing_Program.png)
+![Composing a program with expressions](./Demo_Images/Composing_Program.png)
 
 ## Running the interpeter:
-![Running the interpreter on a program](./demo_pics/Running.png)
+![Running the interpreter on a program](./Demo_Images/Running.png)
