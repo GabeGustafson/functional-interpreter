@@ -58,12 +58,22 @@ module interpreter =
     type Function(b:Expression, fA:Name[]) =
             member this.body = b
             member this.formalArgs = fA
- 
 
+    //
+    // helper function: returns the environment with the arguments bound to it
+    //
+    let rec applyArgs argNames argVals curr_env:Environment =
+        match argNames, argVals with
+        | [], [] -> curr_env
+        | name::remainNames, value::remainVals -> applyArgs remainNames remainVals ( curr_env.bind(Binding(name, value)) )
+        | _, _ -> failwith("Incorrect number of arguments in function call")
+ 
+    //
     // EVALUATION FUNCTION
     // Recursively evaluates the given expression.
     // usage: eval([Expression], Environment.EMPTY, Map.empty)
     // returns: The evaluated value from the expression.
+    //
     let rec eval(c:Expression, e:Environment, knownFunctions:Map<string, Function>) =
         match c with
 
@@ -157,21 +167,18 @@ module interpreter =
             eval(scope, e, knownFunctions.Add(name.name_data, newFunction))
 
         // function call exp
-        | FunctionCall(name, actualArgs)
+        | FunctionCall(name, argSupplied)
             ->
             let calledFunction = knownFunctions.TryFind(name.name_data).Value
             
             // evaluate the actual argument values
-            let actualVals = List.ofArray(actualArgs) 
+            let argNames = List.ofArray(calledFunction.formalArgs)
+
+            let argVals = List.ofArray(argSupplied) 
                                 |> List.map(fun arg -> eval(arg, e, knownFunctions)) 
-                                |> List.toArray
 
             // place the arg vals in a new environment
-            let mutable functionEnv = e
-            for ind in 0..actualVals.Length-1 do
-                    let curr_name = calledFunction.formalArgs.[ind]
-                    let curr_val = actualVals.[ind]
-                    functionEnv <- functionEnv.bind(Binding(curr_name, curr_val))
+            let functionEnv = applyArgs argNames argVals e
 
-            // evaluate the function with the actual arg vals
+            // evaluate the function with the new environment that binds the arg vals
             eval(calledFunction.body, functionEnv, knownFunctions)
