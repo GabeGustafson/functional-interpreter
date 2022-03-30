@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>functional_interpreter</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <Compile Include="types.fs" />
+    <Compile Include="interpreter.fs" />
+    <Compile Include="programs.fs" />
+    <Compile Include="demo.fs" />
   </ItemGroup>
-
 </Project>

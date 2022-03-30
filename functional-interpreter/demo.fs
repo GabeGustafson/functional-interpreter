@@ -10,7 +10,7 @@ module demo =
 
     [<EntryPoint>]
     let main argv = 
-        let result = eval(p6, Environment.EMPTY, Map.empty)
+        let result = evaluate p6
         let result_string = result.ToString()
 
         printfn "%s" result_string
