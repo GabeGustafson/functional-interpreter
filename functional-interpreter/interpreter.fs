@@ -13,40 +13,8 @@ open types
 
 module interpreter =
 
-    // ENVIRONMENT types: tracks named variables in interpreted programs
-
-    type Binding(n: Name, v: Value) =
-        member this.name = n
-        member this.value = v
-
-    type Environment(b, e) =
-        member this.binding = b
-        member this.referencingEnvironment = e
-
-        static member EMPTY = Environment(None, None)
- 
-        member this.bind(b: Binding):Environment = 
-            Environment(Some(b), Some(this))
-
-        member this.lookup(name:Name):Value =
-            let curr_binding = this.binding.Value
-            let curr_ref_env = this.referencingEnvironment.Value
-            match curr_binding.name.name_data.Equals(name.name_data) with
-            | true -> curr_binding.value
-            | false -> curr_ref_env.lookup(name)
-
     //
-    // helper function: returns the environment with the arguments bound to it
-    //
-    let rec private applyArgs argNames argVals curr_env:Environment =
-        match argNames, argVals with
-        | [], [] -> curr_env
-        | name::remainNames, value::remainVals -> applyArgs remainNames remainVals ( curr_env.bind(Binding(name, value)) )
-        | _, _ -> failwith("Incorrect number of arguments in function call")
-
-
-    //
-    // helper functions: unpacks a value, returning the underlying data type.
+    // helper functions: Unpacks a value, returning the underlying data type.
     // Fails if the expected type is not found.
     //
     let private unpackIntValue value context =
@@ -62,74 +30,89 @@ module interpreter =
     //
     // RECURSIVE EVALUATION FUNCTION
     //
-    // Recursively evaluates the given expression.
-    // usage: eval([Expression], Environment.EMPTY, Map.empty)
-    // returns: The evaluated value from the expression.
+    // Recursively evaluates the given statement.
+    // initial usage: eval([Statement], Environment.EMPTY, Map.empty)
+    // returns: The Value and new environment from evaluating the statement.
     //
-    let rec private eval (c:Statement) (e:Environment) (knownFunctions:Map<string, Function>) =
+    let rec private eval (c:Statement) (e:Environment) (knownFunctions:Map<string, Function>) : (Value * Environment) =
         match c with
-        | Expr(exp) -> evalExpr exp e knownFunctions
-        | Seq(statements) -> VoidValue
-        | SetVar(name, valExpr) -> VoidValue
+        // expression wrapper
+        | Expr(exp) -> evalExpr exp e knownFunctions // expressions do not change the environment
+
+        // sequential statements
+        | Seq(statements)
+            ->  List.ofArray(statements) |>
+                List.map (fun s -> eval s e knownFunctions) |> // TODO: set new env list.reduce???
+                List.iter (fun v -> ()) // do nothing with values
+                (VoidValue, e) // TODO
+        | SetVar(name, valExpr)
+            ->  let valEvaluated, e2 = evalExpr valExpr e knownFunctions
+                (VoidValue, e2.set name valEvaluated)
             
-    and private evalExpr (exp:Expression) (e:Environment) (knownFunctions:Map<string, Function>) =
+    and private evalExpr (exp:Expression) (e:Environment) (knownFunctions:Map<string, Function>) : (Value * Environment) =
         match exp with
         // constant exp
-        | IntConstant(value) -> (IntValue value)
+        | IntConstant(value) -> (IntValue value, e)
         
         // binary operator exp
         | BinOp(op, left, right) 
-            ->  let l_value = evalExpr left e knownFunctions
-                let r_value = evalExpr right e knownFunctions
+            ->  let l_value, e2 = evalExpr left e knownFunctions
+                let r_value, e3 = evalExpr right e2 knownFunctions
         
                 let l = unpackIntValue l_value "binary operation"
                 let r = unpackIntValue r_value "binary operation"
         
-                match op with
-                | PLUS -> IntValue (l + r)
-                | MINUS -> IntValue (l - r)
-                | TIMES -> IntValue (l * r)
-                | DIV -> IntValue (l / r)  
+                let resultValue =
+                    match op with
+                    | PLUS -> IntValue (l + r)
+                    | MINUS -> IntValue (l - r)
+                    | TIMES -> IntValue (l * r)
+                    | DIV -> IntValue (l / r)
+
+                (resultValue, e3)
         
         // let exp
         | Let(var_name, var_value_exp, body) 
-            ->  let var_value = evalExpr var_value_exp e knownFunctions
-                let newE = e.bind (Binding(var_name, var_value))
-                eval body newE knownFunctions
+            ->  let var_value, e2 = evalExpr var_value_exp e knownFunctions
+                let e3 = e2.bind (Binding(var_name, var_value))
+                let evalValue, e4 = eval body e3 knownFunctions
+
+                // return the (potentially modified) environment without the let variable
+                (evalValue, e4.referencingEnvironment.Value)
         
         // var exp
-        | Variable(var_name) -> e.lookup(var_name)
+        | Variable(var_name) -> e.lookup var_name , e
         
         // comparison exp (eq)
         | Eq(left, right)
-            ->  let l_value = evalExpr right e knownFunctions
-                let r_value = evalExpr left e knownFunctions
+            ->  let l_value, e2 = evalExpr right e knownFunctions
+                let r_value, e3 = evalExpr left e2 knownFunctions
         
                 let l = unpackIntValue l_value "equality comparison"        
                 let r = unpackIntValue r_value "equality comparison"
         
-                BoolValue(l = r)
+                BoolValue(l = r), e3
         
         // comparison exp (neq)
         | Neq(left, right)
-            ->  let l_value = evalExpr right e knownFunctions
-                let r_value = evalExpr left e knownFunctions
+            ->  let l_value, e2 = evalExpr right e knownFunctions
+                let r_value, e3 = evalExpr left e2 knownFunctions
         
                 let l = unpackBoolValue l_value "inequality comparison"
                 let r = unpackBoolValue r_value "inequality comparison"
         
-                BoolValue(l <> r)
+                BoolValue(l <> r), e3
         
         // if exp
         | If(cond, thenSide, elseSide)
             ->  // evaluate condition
-                let cond_value = evalExpr cond e knownFunctions
+                let cond_value, e2 = evalExpr cond e knownFunctions
                 let cond = unpackBoolValue cond_value "if condition"
         
                 if cond then
-                    eval thenSide e knownFunctions
+                    eval thenSide e2 knownFunctions
                 else
-                    eval elseSide e knownFunctions
+                    eval elseSide e2 knownFunctions
         
         // function declaration exp
         | FunctionDeclaration(name, formalArgs, body, scope)
@@ -142,20 +125,33 @@ module interpreter =
         // function call exp
         | FunctionCall(name, argSupplied)
             ->
-            let calledFunction = knownFunctions.TryFind(name.name_data).Value
-                    
-            // evaluate the actual argument values
+            // find and validate the called function
+            let calledFunctionSome = knownFunctions.TryFind(name.name_data)
+            if calledFunctionSome.IsNone then
+                failwith("Failed lookup on function: " + name.name_data)
+            let calledFunction = calledFunctionSome.Value
+
+            // form lists for the argument expressions
             let argNames = List.ofArray(calledFunction.formalArgs)
+            let argExprs = List.ofArray(argSupplied) 
         
-            let argVals = List.ofArray(argSupplied) 
-                                |> List.map(fun argExpr -> evalExpr argExpr e knownFunctions)
-        
-            // place the computed arg vals in a new environment
-            let functionEnv = applyArgs argNames argVals e
+            // eval and place the arg vals in a new environment
+            let functionEnv = applyArgs argNames argExprs knownFunctions e
         
             // evaluate the function with the new environment that has bound the arguments to their values
             evalExpr calledFunction.body functionEnv knownFunctions
+    //
+    // helper function: Returns the environment with the arguments
+    // evaluated and bound to it.
+    //
+    and private applyArgs argNames argExprs knownFunctions currEnv:Environment =
+        match argNames, argExprs with
+        | [], [] -> currEnv
+        | argName::remainNames, argExpr::remainingExprs ->
+            let argVal, newEnv = evalExpr argExpr currEnv knownFunctions
+            applyArgs remainNames remainingExprs knownFunctions (newEnv.bind(Binding(argName, argVal)) )
+        | _, _ -> failwith("Incorrect number of arguments in function call")
 
     // API EVALUATION FUNCTION
     let evaluate (c:Statement) =
-        eval c Environment.EMPTY Map.empty
+        fst(eval c Environment.EMPTY Map.empty)
