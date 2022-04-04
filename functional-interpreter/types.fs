@@ -12,7 +12,7 @@ module types =
 
     // STATEMENTS
 
-    // Expressions must evaluate to a Value and do not directly change program state
+    // Expressions must evaluate to a Value and do not directly change the general program state
     type Expression =
         | IntConstant of int32
         | BinOp of Operator * Expression * Expression
@@ -25,11 +25,11 @@ module types =
         | FunctionCall of Name * Expression[]
     and Statement = // Statements may evaluate to a Value and may directly change program state
         | Expr of Expression
-        | Seq of Statement[]
+        | Seq of List<Statement>
         | SetVar of Name * Expression
 
 
-    // INTREPTER TYPES
+    // INTERPRETER TYPES
 
     type Value =
         | IntValue of int32
@@ -50,67 +50,88 @@ module types =
         type Binding(n: Name, v: Value) =
             member this.name = n
             member this.value = v
-    
-        type Environment(b, e) =
-            member this.binding = b
-            member this.referencingEnvironment = e
-    
-            // Note: binding and ref env are optional, but may only be None in the EMPTY environment
-            static member EMPTY = Environment(None, None)
+        //
+        // Contains a given binding and a reference to the context environment.
+        // 
+        // This class essentially simulates a linked list (each Env consitutes a node
+        // and the end of the list is denoted by EMPTY)
+        //
+        type Environment =
+            | EMPTY 
+            | Env of Binding * Environment
     
             //
             // Returns a new environment with the given binding and all existing
             // bindings.
             //
             member this.bind (b: Binding):Environment = 
-                Environment(Some(b), Some(this))
+                Env(b, this)
 
             //
             // Returns the value associated with the given name.
             // 
-            member this.lookup (name:Name) : Value =
-                let curr_binding = this.binding.Value
-                let curr_ref_env = this.referencingEnvironment.Value
+            member this.lookup (searchName:Name) : Value =
+                match this with
+                | EMPTY -> failwith("Lookup on " + searchName.name_data + " failed")
+                | Env(currBind, refEnv) when (currBind.name.name_data.Equals(searchName.name_data))
+                    -> currBind.value
+                | Env(currBind, refEnv) -> refEnv.lookup(searchName)
 
-                if this.Equals(Environment.EMPTY) then
-                    failwith("Lookup on " + name.name_data + " failed")
-                else if curr_binding.name.name_data.Equals(name.name_data) then
-                    curr_binding.value
-                else
-                    curr_ref_env.lookup(name)
 
             //
             // Returns a new environment with the replaced binding and all existing
-            // bindings.
+            // bindings (preserves order).
             //
-            member this.set (name:Name) (value:Value) : Environment =
-                this._set name value Environment.EMPTY
+            // E[("x", 5); ("y", 7)].set "x" 7 => E2[("x", 7); ("y", 7)]
+            //
+            member this.set (setName:Name) (value:Value) : Environment =
+                this._set setName value Environment.EMPTY
 
-            member private this._set(name:Name) (value:Value) (newEnv:Environment) =
-                let curr_binding = this.binding.Value
-                let curr_ref_env = this.referencingEnvironment.Value
+            // recursively build the new environment
+            member private this._set(setName:Name) (value:Value) (newEnv:Environment) =
 
-                // recursively build the new environment
-                if this.Equals(Environment.EMPTY) then
-                    failwith("Lookup on " + name.name_data + " failed when setting")
+                match this with
+                // invalid case: fail
+                | EMPTY -> failwith("Lookup on " + setName.name_data + " failed when setting")
+
                 // set case: form new binding and join with referencing env
-                else if curr_binding.name.name_data.Equals(name.name_data) then
-                    // reverse the reversed environment
-                    Environment.EMPTY.join ((newEnv.bind(Binding(name, value))).join curr_ref_env)
+                | Env(currBind, refEnv) when (currBind.name.name_data.Equals(setName.name_data))
+                    ->  let currEnvWithSet:Environment = (newEnv.bind(Binding(setName, value))).reverse
+                        currEnvWithSet.join refEnv
+
                 // copy case: include current binding and referencing env
-                else
-                    curr_ref_env._set name value (newEnv.bind(curr_binding))
+                | Env (currBind, refEnv) -> refEnv._set setName value (newEnv.bind(currBind))
 
             //
-            // Returns the union of the two environments (reverses order of other environment).
+            // Returns the concatenation of the two environments (preserves order).
+            // 
+            // E1[b1; b2; EMPTY].join E2[b11; b12; EMPTY] => E3[b1; b2; b11; b12; EMPTY]
             //
             member this.join otherEnv : Environment =
-                this._join otherEnv this
+                this._join otherEnv EMPTY
 
-            member private this._join (otherEnv:Environment) (currEnv:Environment) =
-                // base case: other environment is exhausted
-                if otherEnv.Equals(Environment.EMPTY) then
-                    currEnv
-                else // inductive case: continue to build new Environment
-                    this._join (otherEnv.referencingEnvironment.Value) (currEnv.bind(otherEnv.binding.Value))
-                    // NOTE: .Value is necessary because these are optional types in the environment
+            // recursively build the joined environment by building the reverse of the (other env)
+            // followed by the reverse of (this env).
+            member private this._join (otherEnv:Environment) (newEnv:Environment) =
+                match this, otherEnv with
+                // base case: reverse the built environment
+                | EMPTY, EMPTY -> newEnv.reverse
+
+                // consume other case: this is exhausted
+                | EMPTY, Env(otherBind, otherRef) -> this._join otherRef (newEnv.bind(otherBind))
+
+                // consume this case: this still has bindings
+                | Env(thisBind, thisRef), _ -> thisRef._join otherEnv (newEnv.bind(thisBind))
+
+            //
+            // Returns an environment with the reverse order of this environment.
+            //
+            member this.reverse : Environment =
+                this._reverse EMPTY
+
+            // recursively build the reverse environment by "prepending" each ref env in order.
+            member private this._reverse (newEnv:Environment) =
+                match this with
+                | EMPTY -> newEnv
+                | Env(bind, ref) -> ref._reverse (newEnv.bind(bind))
+

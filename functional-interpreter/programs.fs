@@ -157,3 +157,28 @@ module programs =
                           ))
               )
         ))
+
+    //
+    // let x = 6 in
+    //      set x to x+1;
+    //      x + x;
+    // returns: 14
+    let private p7Set_x =
+        SetVar(
+            Name("x"),
+                BinOp(
+                    PLUS,
+                    Variable(Name("x")),
+                    IntConstant(1)
+        ))
+    let prog7SeqSetVar =
+        Expr(
+            Let(
+                Name("x"),
+                IntConstant(6),
+                Seq(
+                    [p7Set_x;
+                    Expr(BinOp(PLUS, Variable(Name("x")), Variable(Name("x"))))
+                    ])
+        )
+        )

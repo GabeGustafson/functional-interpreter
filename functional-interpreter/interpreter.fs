@@ -41,10 +41,7 @@ module interpreter =
 
         // sequential statements
         | Seq(statements)
-            ->  List.ofArray(statements) |>
-                List.map (fun s -> eval s e knownFunctions) |> // TODO: set new env list.reduce???
-                List.iter (fun v -> ()) // do nothing with values
-                (VoidValue, e) // TODO
+            ->  evalSeq statements e knownFunctions
         | SetVar(name, valExpr)
             ->  let valEvaluated, e2 = evalExpr valExpr e knownFunctions
                 (VoidValue, e2.set name valEvaluated)
@@ -78,7 +75,12 @@ module interpreter =
                 let evalValue, e4 = eval body e3 knownFunctions
 
                 // return the (potentially modified) environment without the let variable
-                (evalValue, e4.referencingEnvironment.Value)
+                let e4Ref =
+                    match e4 with
+                    | EMPTY -> EMPTY
+                    | Env(_, ref) -> ref
+
+                (evalValue, e4Ref)
         
         // var exp
         | Variable(var_name) -> e.lookup var_name , e
@@ -151,6 +153,17 @@ module interpreter =
             let argVal, newEnv = evalExpr argExpr currEnv knownFunctions
             applyArgs remainNames remainingExprs knownFunctions (newEnv.bind(Binding(argName, argVal)) )
         | _, _ -> failwith("Incorrect number of arguments in function call")
+    //
+    // helper function: Recursively evaluates a sequential statement to its last
+    // evaluated statement's value.
+    //
+    and private evalSeq (seq:List<Statement>) (e:Environment) (knownFunctions:Map<string, Function>) =
+        match seq with
+        | [] -> VoidValue, e
+        | c::[] -> eval c e knownFunctions
+        | c::seq_tail
+            -> let _, e2 = eval c e knownFunctions
+               evalSeq seq_tail e2 knownFunctions
 
     // API EVALUATION FUNCTION
     let evaluate (c:Statement) =

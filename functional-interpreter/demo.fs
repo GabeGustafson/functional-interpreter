@@ -10,7 +10,7 @@ module demo =
 
     [<EntryPoint>]
     let main argv = 
-        let result = evaluate prog6
+        let result = evaluate prog7SeqSetVar
         let result_string = result.ToString()
 
         printfn "%s" result_string
