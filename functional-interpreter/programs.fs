@@ -182,3 +182,39 @@ module programs =
                     ])
         )
         )
+
+    //
+    //  let x = 0 in
+    //      let y = 1 in
+    //          while ( x != 10)
+    //          {
+    //              y = y * 2;
+    //              x++;
+    //          }
+    //          y;
+    // 
+    // returns: 1024
+    let p8Loop =
+        While(
+            Neq(Variable(Name("x")), IntConstant(10)),
+                Seq(
+                    [SetVar(Name("y"), BinOp(TIMES, Variable(Name("y")), IntConstant(2)));
+                     IncVar(Name("x"))]
+                    )
+        )
+
+
+    let prog8While =
+        Expr(Let(
+                Name("x"),
+                IntConstant(0),
+                Expr(Let(
+                        Name("y"),
+                        IntConstant(1),
+                        Seq(
+                            [p8Loop;
+                                Expr(Variable(Name("y")))]
+                        )
+                ))
+            ))
+

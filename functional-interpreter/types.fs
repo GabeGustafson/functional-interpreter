@@ -27,6 +27,8 @@ module types =
         | Expr of Expression
         | Seq of List<Statement>
         | SetVar of Name * Expression
+        | IncVar of Name
+        | While of Expression * Statement
 
 
     // INTERPRETER TYPES

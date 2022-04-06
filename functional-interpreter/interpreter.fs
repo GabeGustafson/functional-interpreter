@@ -20,12 +20,12 @@ module interpreter =
     let private unpackIntValue value context =
         match value with
         | IntValue(i) -> i
-        | _ -> failwith("Expected int value in " + context)
+        | _ -> failwith("Expected int expression in " + context)
 
     let private unpackBoolValue value context =
         match value with
         | BoolValue(b) -> b
-        | _ -> failwith("Expected bool value in " + context)
+        | _ -> failwith("Expected bool expression in " + context)
         
     //
     // RECURSIVE EVALUATION FUNCTION
@@ -42,9 +42,32 @@ module interpreter =
         // sequential statements
         | Seq(statements)
             ->  evalSeq statements e knownFunctions
+
+        // set variable stmt
         | SetVar(name, valExpr)
             ->  let valEvaluated, e2 = evalExpr valExpr e knownFunctions
                 (VoidValue, e2.set name valEvaluated)
+
+        // increment variable stmt (can be considered an expression)
+        | IncVar(name)
+            ->  let curr_val = unpackIntValue (e.lookup name) ("increment " + name.name_data)
+                let new_value = Value.IntValue(curr_val+1)
+                (new_value, e.set name new_value)
+
+        // while loop stmt
+        | While(conditionExpr, bodyStmt)
+            ->  let executeBody, e2 = evalExpr conditionExpr e knownFunctions
+                let executeBodyBool = unpackBoolValue executeBody "while condition"
+
+                // if the condition is true, evaluate the body, followed by the entire while command again
+                if executeBodyBool then
+                    let _, e3 = eval bodyStmt e2 knownFunctions
+                    eval c e3 knownFunctions
+                else
+                    Value.VoidValue, e2
+                
+                
+                    
             
     and private evalExpr (exp:Expression) (e:Environment) (knownFunctions:Map<string, Function>) : (Value * Environment) =
         match exp with
@@ -100,8 +123,8 @@ module interpreter =
             ->  let l_value, e2 = evalExpr right e knownFunctions
                 let r_value, e3 = evalExpr left e2 knownFunctions
         
-                let l = unpackBoolValue l_value "inequality comparison"
-                let r = unpackBoolValue r_value "inequality comparison"
+                let l = unpackIntValue l_value "inequality comparison"
+                let r = unpackIntValue r_value "inequality comparison"
         
                 BoolValue(l <> r), e3
         
