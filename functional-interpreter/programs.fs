@@ -9,36 +9,36 @@ module programs =
     // 777
     let prog1 = Expr(IntConstant(777))
 
-    // 400 + 74
-    // returns: 474
-    let prog2 = Expr(BinOp(PLUS, IntConstant(400), IntConstant(74)))
+    // 700 + 77
+    // returns: 777
+    let prog2 = Expr(BinOp(PLUS, IntConstant(700), IntConstant(77)))
 
-    // let x = 474
-    // x / 2
-    // returns: 237
+    // let x = 700
+    // 700 / 2
+    // returns: 350
     let prog3A =
         Expr(
             Let(
                 Name("x"), 
-                IntConstant(474), 
+                IntConstant(700), 
                 Expr(BinOp(
                         DIV, 
                         Variable(Name("x")), 
                         IntConstant(2))))
     )
 
-    // let x = 444
+    // let x = 777
     // x
-    // returns: 444
+    // returns: 777
     let prog3B =
         Expr(
             Let(
                 Name("x"), 
-                IntConstant(444), 
+                IntConstant(777), 
                 Expr(Variable(Name("x")))
     ))
 
-    // ((400 + 74) / 3) == 158
+    // ((700 + 77) / 3) == 259
     // returns: true
     let prog3C =
         Expr(
@@ -47,59 +47,62 @@ module programs =
                           DIV, 
                           BinOp(
                                 PLUS, 
-                                IntConstant(400), 
-                                IntConstant(74)
+                                IntConstant(700), 
+                                IntConstant(77)
                           ), 
                           IntConstant(3)
                     ),
-                    IntConstant(158)
+                    IntConstant(259)
                 ))
 
-    // let bot = 3 in
-    // (let bot = 2 in bot)
+    // let denom = 3 in
+    // (let denom = 2 in denom)
     // +
-    // (if (bot == 0) then 474/0 else (400+74)/bot)
-    // returns: 160
+    // (if (denom == 0) then 777/0 else (700+77)/denom)
+    // 
+    // returns: 261
     let prog5 =
         Expr(Let(
-                    Name("bot"), 
+                    Name("denom"), 
                     IntConstant(3), 
                     Expr(BinOp(
                           PLUS, 
                           Let(
-                                Name("bot"), 
+                                Name("denom"), 
                                 IntConstant(2), 
-                                Expr(Variable(Name("bot")))
+                                Expr(Variable(Name("denom")))
                           ), 
                           If(
-                                Eq(Variable(Name("bot")), IntConstant(0)),
+                                Eq(Variable(Name("denom")), IntConstant(0)),
                                 Expr(BinOp(
                                       DIV,
-                                      IntConstant(474),
+                                      IntConstant(777),
                                       IntConstant(0)
                                 )),
                                 Expr(BinOp(
                                       DIV,
                                       BinOp(
                                             PLUS,
-                                            IntConstant(400),
-                                            IntConstant(74)
+                                            IntConstant(700),
+                                            IntConstant(77)
 
                                       ),
-                                      Variable(Name("bot"))
+                                      Variable(Name("denom"))
                                 ))
                           )
                     ))
         ))
 
 
-    //function f(top,bot) :
-    // if (bot == 0) then 0 else top/bot
+    // function f(top,bot) :
+    //    if (bot == 0) then 0 else top/bot
+    //
     //let bot = 3 in
     // (let bot = 2 in bot)
     // +
-    // (f(400+74,bot) + f(470+4,0))
-    // returns 160
+    // (f(700+77,bot) + f(770+7,0))
+    // 
+    // returns: 261
 
     let private p6LeftExpr =
         Let(
@@ -116,8 +119,8 @@ module programs =
                   [|
                         BinOp(
                               PLUS,
-                              IntConstant(400),
-                              IntConstant(74)
+                              IntConstant(700),
+                              IntConstant(77)
                         );
                         Variable(Name("bot"))                        
                   |]
@@ -127,8 +130,8 @@ module programs =
                   [|
                         BinOp(
                               PLUS,
-                              IntConstant(470),
-                              IntConstant(4)
+                              IntConstant(770),
+                              IntConstant(7)
                         );
                         IntConstant(0)
                   |]

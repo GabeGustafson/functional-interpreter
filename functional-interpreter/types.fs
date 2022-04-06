@@ -12,7 +12,7 @@ module types =
 
     // STATEMENTS
 
-    // Expressions must evaluate to a Value and do not directly change the general program state
+    // Expressions must evaluate to a Value
     type Expression =
         | IntConstant of int32
         | BinOp of Operator * Expression * Expression
@@ -23,8 +23,10 @@ module types =
         | If of Expression * Statement * Statement
         | FunctionDeclaration of Name * Name[] * Expression * Expression
         | FunctionCall of Name * Expression[]
-    and Statement = // Statements may evaluate to a Value and may directly change program state
-        | Expr of Expression
+
+    // Statements may evaluate to Values and may change program state
+    and Statement = 
+        | Expr of Expression // an Expression is a case of Statement
         | Seq of List<Statement>
         | SetVar of Name * Expression
         | IncVar of Name
