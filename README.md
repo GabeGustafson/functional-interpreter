@@ -1,6 +1,6 @@
 # Functional Interpreter
 
-This library supports the interpreting of **imperative** statements
+A library that supports the interpreting of **imperative** statements
 using strictly **functional** techniques.
 
 These statements can be composed to create basic programs with changing state.
@@ -48,4 +48,6 @@ Interpreting imperative statements with the functional paradigm poses a challeng
 
 Using the library's **Environment** type, the functional interpreter simulates an immutable linked list to store the current value of all variables. When a value is changed, a new Environment is produced that reflects the change to the old environment.
 
-Both the intrepeter and the fundamental statement types are all written in F#.
+Both the interpreter and the fundamental Statement types are all written in F#.
+
+Note that the fundamental Statement types and the basic model for a (non-functional) interpreter are inspired from the lectures of Luis Pina. 
